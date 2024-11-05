@@ -1,4 +1,4 @@
-<!--Code gotten from ChatGPT using the query "make this compostiton api and make it work" -->
+<!--Code gotten from ChatGPT using the query "make this compostiton api and make it work"-->
 <template>
     <div>
         <!-- Form for user input to fetch weather data -->
