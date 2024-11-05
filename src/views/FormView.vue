@@ -1,185 +1,158 @@
+<!--Code gotten from ChatGPT using the query "make this compostiton api and make it work" -->
 <template>
     <div>
-        <form @submit.prevent="fetch_remote_data">
-            
+        <!-- Form for user input to fetch weather data -->
+        <form @submit.prevent="fetchRemoteData">
             <div class="form-group">
-                <h2> Weather Data </h2>
-                <p> Please fill in the form and use the submit button to load data.</p>
-                <label for="">Location</label>
-                <br>
-                <!-- The input field for the location, bound to the data_inputted.location property -->
-                <input class="form-control rounded" v-model="form_input.location" type="text" required />
+                <h2>Weather Data</h2>
+                <p>Please fill in the form and use the submit button to load data.</p>
+                <label for="">Location</label><br>
+                <!-- Input for location, bound to formInput.location -->
+                <input class="form-control rounded" v-model="formInput.location" type="text" required />
             </div>
-            
+
             <div class="form-group">
-                <label for="">Start Date</label>
-                <br>
-                <!-- The input field for the start date, bound to the data_inputted.start_dt property -->
-                <input class="form-control rounded" type="date" v-model="form_input.start_dt" required />
+                <label for="">Start Date</label><br>
+                <!-- Input for start date, bound to formInput.startDt -->
+                <input class="form-control rounded" type="date" v-model="formInput.startDt" required />
             </div>
-            
+
             <div class="form-group">
-                <label for="">End Date</label>
-                <br>
-                
-                <input class="form-control rounded" type="date" v-model="form_input.end_dt" required />
-            </div>
-            <br>
+                <label for="">End Date</label><br>
+                <!-- Input for end date, bound to formInput.endDt -->
+                <input class="form-control rounded" type="date" v-model="formInput.endDt" required />
+            </div><br>
+
+            <!-- Submit button -->
             <div>
                 <button class="btn btn-danger" type="submit">Submit</button>
             </div>
-        </form>
-        <br /><br />
+        </form><br /><br />
 
-        <div v-if = "dataLoaded">
-            <Bar :data="chart_data" :options="chart_options" />
+        <!-- Chart component to display data, shown only if data is loaded -->
+        <div v-if="dataLoaded">
+            <Bar :data="chartData" :options="chartOptions" />
         </div>
 
-        <div v-if = "dataLoaded">
+        <!-- Table view for weather data, displayed if data is loaded -->
+        <div v-if="dataLoaded">
             <hr>
-            <h5> Weather Data in a Table</h5>
+            <h5>Weather Data in a Table</h5>
             <table class="table">
                 <thead>
                     <tr>
-                        <th v-for="adate in keys">{{ adate }}</th>
+                        <!-- Table header for each date, dynamic with v-for -->
+                        <th v-for="adate in keys" :key="adate">{{ adate }}</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td v-for="atemp in values">{{ atemp }}</td>
+                        <!-- Table cells for each temperature value, dynamic with v-for -->
+                        <td v-for="atemp in values" :key="atemp">{{ atemp }}</td>
                     </tr>
                 </tbody>
             </table>            
         </div>
-
     </div>
 </template>
 
+<script>
+import axios from "axios";
+import { ref } from "vue";
+import { Bar } from "vue-chartjs";
+import { Chart as ChartJS, Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale } from 'chart.js';
+
+// Register Chart.js components to enable chart rendering
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+export default {
+    components: {
+        Bar, // Registering the Bar chart component from vue-chartjs
+    },
+    setup() {
+        // Reactive state for form inputs (location, start and end dates)
+        const formInput = ref({ startDt: "", endDt: "", location: "" });
+
+        // Boolean reactive state to check if data is loaded
+        const dataLoaded = ref(false);
+
+        // Arrays to store date and temperature data for the table and chart
+        const keys = ref([]); // Dates
+        const values = ref([]); // Temperatures
+        
+        // Chart configuration options (axes labels, responsiveness)
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                x: { title: { display: true, text: "Time" } },
+                y: { title: { display: true, text: "Temperature (F)" } },
+            },
+        };
+
+        // Reactive data structure for chart data
+        const chartData = ref({
+            labels: [], // Labels will be set dynamically
+            datasets: [{ label: "Average Temperature", backgroundColor: "#f87979", data: [] }],
+        });
+
+        // Function to fetch weather data from API using axios
+        const fetchRemoteData = async () => {
+            // API request options, with parameters based on form input
+            const options = {
+                method: 'GET',
+                url: 'https://weatherapi-com.p.rapidapi.com/history.json',
+                params: {
+                    q: formInput.value.location,
+                    dt: formInput.value.startDt,
+                    end_dt: formInput.value.endDt,
+                    lang: 'en'
+                },
+                headers: {
+                    'X-RapidAPI-Key': 'c5ba91ee15msh88e0253ce262ddap13b6e7jsnd353ddeec9a4',
+                    'X-RapidAPI-Host': 'weatherapi-com.p.rapidapi.com'
+                }
+            };
+            try {
+                // Await API response
+                const resp = await axios.request(options);
+                
+                // Parse response to extract weather data
+                const w_data = resp.data.forecast.forecastday;
+                keys.value = w_data.map((item) => item.date); // Set keys to dates
+                values.value = w_data.map((item) => item.day.avgtemp_f); // Set values to temperatures
+
+                // Update chartData with the fetched data
+                chartData.value = {
+                    labels: keys.value,
+                    datasets: [{ label: "Average Temperature", backgroundColor: "#f87979", data: values.value }],
+                };
+                dataLoaded.value = true; // Indicate data is successfully loaded
+            } catch (error) {
+                console.error(error); // Log errors if request fails
+            }
+        };
+
+        // Returning all state and methods to the template
+        return {
+            formInput,
+            dataLoaded,
+            keys,
+            values,
+            chartOptions,
+            chartData,
+            fetchRemoteData,
+        };
+    }
+};
+</script>
+
 <style>
+/* Basic table styling */
 table, th, td {
   border: 1px solid black;
   border-collapse: collapse;
 }
 </style>
 
-<script>
 
-import axios from "axios";
-
-import {
-  Chart as ChartJS,
-  Title,
-  Tooltip,
-  Legend,
-  BarElement,
-  CategoryScale,
-  LinearScale
-} from 'chart.js'
-import { Bar } from 'vue-chartjs'
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
-
-export default {
-    components: {
-        // Line
-        //BarChart: Bar,
-        Bar,
-    },
-    
-    data() {
-        return {
-            form_input: {
-                start_dt: "",
-                end_dt: "",
-                location: "",
-            },
-
-            chart_options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: "Time",
-                        },
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: "Temperature (F)",
-                        },
-                    },
-                },
-            },
-
-            chart_data: {
-                labels: [], 
-                datasets: [
-                    {
-                        label: "Average Temperature", 
-                        backgroundColor: "#f87979", 
-                        data: [], 
-                    },
-                ],
-            },
-            dataLoaded: false,
-            
-            keys: [],
-            values: [],
-            // daily_temp: {},
-        };
-    },
-
-    methods: {
-        // https://rapidapi.com/weatherapi/api/weatherapi-com/
-        async fetch_remote_data() {
-            const options = {
-                method: 'GET',
-                url: 'https://weatherapi-com.p.rapidapi.com/history.json',
-                params: {
-                    q: this.form_input.location,
-                    dt: this.form_input.start_dt,
-                    end_dt: this.form_input.end_dt,
-                    lang: 'en'
-                },
-                headers: {
-                    'X-RapidAPI-Key': '6c6f790650msh5ce4da2fced77a7p1b1776jsn247d9f531b74',
-                    'X-RapidAPI-Host': 'weatherapi-com.p.rapidapi.com'
-                }
-            };
-            
-            try {
-                await axios.request(options).then((resp) => {
-                    // this.keys.forEach((element, index) => {
-                    //    this.daily_temp[element] = this.values[index];
-                    // });
-                    // console.log(this.daily_temp);
-
-                    const w_data = resp.data.forecast.forecastday; 
-                    this.keys = w_data.map((item) => item.date);
-                    this.values = w_data.map((item) => item.day.avgtemp_f);
-
-                    
-                    this.chart_data = {
-                        labels: this.keys, 
-                        datasets: [
-                            {
-                                label: "Average Temperature", 
-                                backgroundColor: "#f87979", 
-                                data: this.values, 
-                            },
-                        ],
-                    },
-                    
-                    this.dataLoaded = true;
-                })
-            } catch (error) {
-                console.error(error);
-            }
-            
-        }
-    },
-}
-
-</script>
